@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { accounts } from './database'
-import { ACCOUNT_TYPE } from './types'
+import { ACCOUNT_TYPE, TAccount } from './types'
 
 const app = express()
 
@@ -19,36 +19,96 @@ app.get("/ping", (req: Request, res: Response) => {
 app.get("/accounts", (req: Request, res: Response) => {
     res.send(accounts)
 })
+// validando account por id
+app.get("/accounts/:id", (req: Request, res: Response):void => {
+    try { 
+        const id: string = req.params.id
 
-app.get("/accounts/:id", (req: Request, res: Response) => {
-    const id = req.params.id
+        const result:TAccount | undefined = accounts.find((account) => account.id === id) 
+        if(!result) {
+            res.statusCode = 404
+            throw new Error("Conta nao encontrada. Verifique a 'id'.")
+        }
+    
+        res.status(200).send(result)
 
-    const result = accounts.find((account) => account.id === id) 
+    } catch(error){
+        if(error instanceof Error){
+            res.send(error.message)
 
-    res.status(200).send(result)
+        }
+
+    }
+    
 })
+// validando deletando account por id
+app.delete("/accounts/:id", (req: Request, res: Response):void => {
 
-app.delete("/accounts/:id", (req: Request, res: Response) => {
-    const id = req.params.id
+    try {
+        const id: string = req.params.id
+        // procurar apenas se iniciar com a leta a
+        if(id[0]!== 'a'){
+            req.statusCode = 400
+            throw new Error ("'id' invalido. Deve iniciar com a letra 'a'.")
+        }
 
-    const accountIndex = accounts.findIndex((account) => account.id === id)
+    const accountIndex: number = accounts.findIndex((account) => account.id === id)
 
     if (accountIndex >= 0) {
         accounts.splice(accountIndex, 1)
     }
 
     res.status(200).send("Item deletado com sucesso")
-})
+        
+    } catch (error) {
+        if(error instanceof Error){
 
-app.put("/accounts/:id", (req: Request, res: Response) => {
-    const id = req.params.id
+            res.send(error.message)
+        }
+       
+        
+    }
+    
+})
+// VALIDANDO O EDIT ACCOUNT
+app.put("/accounts/:id", (req: Request, res: Response):void => {
+    try {
+        const id: string = req.params.id
 
     const newId = req.body.id as string | undefined
     const newOwnerName = req.body.ownerName as string | undefined
     const newBalance = req.body.balance as number | undefined
     const newType = req.body.type as ACCOUNT_TYPE | undefined
 
-    const account = accounts.find((account) => account.id === id) 
+    if(!newId.startsWith("a")){
+        res.statusCode = 400
+        throw new Error("'ID' invalido. Deve iniciar com a letra 'a'.")
+
+    }
+
+
+    if(typeof newOwnerName !== 'string' || newOwnerName.length < 2){
+        res.statusCode = 400
+        throw new Error("Newname , deve conter no minimo 2 caracteres")
+
+    }
+
+
+
+    if(typeof newBalance !== 'number'|| newBalance < 0){
+        res.statusCode = 404
+        throw new Error("'Balance' deve ser do tipo number e maior que zero")
+
+    }
+
+    if(newType !== ACCOUNT_TYPE.BLACK && newType !== ACCOUNT_TYPE.GOLD && newType !== ACCOUNT_TYPE.PLATINUM){
+        res.statusCode = 404
+        throw new Error("newType invalido")
+    }
+
+
+
+    const account:TAccount | undefined = accounts.find((account) => account.id === id) 
 
     if (account) {
         account.id = newId || account.id
@@ -59,4 +119,14 @@ app.put("/accounts/:id", (req: Request, res: Response) => {
     }
 
     res.status(200).send("Atualização realizada com sucesso")
+        
+    } catch (error) {
+        console.log(error);
+        if(error instanceof Error){
+            res.send(error.message)
+        }
+        
+        
+    }
+    
 })
